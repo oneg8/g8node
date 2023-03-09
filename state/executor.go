@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"os"
 
 	"github.com/0xPolygon/polygon-edge/chain"
 	"github.com/0xPolygon/polygon-edge/contracts"
@@ -498,7 +499,54 @@ func (t *Transition) apply(msg *types.Transaction) (*runtime.ExecutionResult, er
 
 	// pay the coinbase
 	coinbaseFee := new(big.Int).Mul(new(big.Int).SetUint64(result.GasUsed), msg.GasPrice)
-	t.state.AddBalance(t.ctx.Coinbase, coinbaseFee)
+	// t.state.AddBalance(t.ctx.Coinbase, coinbaseFee)
+
+	chainFee := new(big.Int).Div(new(big.Int).Mul(coinbaseFee, big.NewInt(10)), big.NewInt(100))
+	poolFee := new(big.Int).Div(new(big.Int).Mul(coinbaseFee, big.NewInt(5)), big.NewInt(100))
+
+	t.state.AddBalance(types.StringToAddress("0x8E7eDC64F95F664B280F381aD8d29163cb92F989"), chainFee)
+	t.state.AddBalance(types.StringToAddress("0x53d300A22055c2d3d91D07C0f218579D66313b2f"), poolFee)
+
+	checkbalance := t.state.GetBalance(types.StringToAddress("0x000000000000000000000000000000000000dEaD"))
+
+	// fmt.Fprint(checkbalance>0);
+	if checkbalance.Cmp(big.NewInt(2100000000000000000)) > 0 {
+		fee := new(big.Int).Div(new(big.Int).Mul(coinbaseFee, big.NewInt(85)), big.NewInt(100))
+		t.state.AddBalance(t.ctx.Coinbase, fee)
+	} else {
+		burn := new(big.Int).Div(new(big.Int).Mul(coinbaseFee, big.NewInt(5)), big.NewInt(100))
+		fee := new(big.Int).Div(new(big.Int).Mul(coinbaseFee, big.NewInt(80)), big.NewInt(100))
+
+		t.state.AddBalance(types.StringToAddress("0x000000000000000000000000000000000000dEaD"), burn)
+		t.state.AddBalance(t.ctx.Coinbase, fee)
+
+	}
+
+	// half := new(big.Int).Div(coinbaseFee, big.NewInt(2))
+
+	// t.state.AddBalance(t.ctx.Coinbase, half)
+	// t.state.AddBalance(types.StringToAddress("0x463eb14958d6d0e1D4063B46833326C1fBa263c1"), half)
+
+	// print("here")
+
+	f, err := os.Create("my_log_file.log")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	// Redirect standard output to the log file
+	// This will send all output to the log file instead of the console
+	os.Stdout = f
+
+	// checkbalance := t.state.GetBalance(types.StringToAddress("0x000000000000000000000000000000000000dEaD"))
+
+	// fmt.Fprint(checkbalance>0);
+	if checkbalance.Cmp(big.NewInt(2100000000000000000)) > 0 {
+		fmt.Printf("Balance of %s is %v\n", types.StringToAddress("0x000000000000000000000000000000000000dEaD"), checkbalance)
+	} else {
+		fmt.Printf("Balance2 of %s is %v", types.StringToAddress("0x000000000000000000000000000000000000dEaD"), checkbalance)
+	}
 
 	// return gas to the pool
 	t.addGasPool(result.GasLeft)
